@@ -25,8 +25,10 @@ exports.register = [
     (0, express_validator_1.body)("firstName").not().isEmpty().withMessage("Firstname cannot be Empty"),
     (0, express_validator_1.body)("lastName").not().isEmpty().withMessage("Lastname cannot be Empty"),
     (0, express_validator_1.body)("username").not().isEmpty().withMessage("Username cannot be Empty"),
-    (0, express_validator_1.body)("password").not().isEmpty().withMessage("Password cannot be Empty"),
     (0, express_validator_1.body)("password")
+        .not()
+        .isEmpty()
+        .withMessage("Password cannot be Empty")
         .isLength({ min: 6 })
         .withMessage("The minimum password length should be at least 6 characters"),
     (0, express_validator_1.body)("dateOfBirth")
@@ -36,11 +38,11 @@ exports.register = [
         .isDate()
         .withMessage("Invalid date format. Please use YYYY-MM-DD"),
     (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        const { firstName, lastName, username, password, dateOfBirth } = req.body;
         const errors = (0, express_validator_1.validationResult)(req);
         if (!errors.isEmpty()) {
-            return res.status(400).json({ errorMessage: errors.array });
+            return res.status(400).json({ errorMessage: errors.array() });
         }
+        const { firstName, lastName, username, password, dateOfBirth } = req.body;
         try {
             const existingUsername = yield userModel_1.default.findOne({ username }).exec();
             if (existingUsername) {
@@ -66,7 +68,7 @@ exports.register = [
                 const payload = {
                     errorMessage: error.message,
                 };
-                console.error("Registration error: ", error);
+                console.error("Registration error: ", payload);
                 return res.status(500).json(payload);
             }
             throw error;

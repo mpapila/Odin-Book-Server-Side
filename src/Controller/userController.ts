@@ -12,8 +12,10 @@ export const register = [
   body("firstName").not().isEmpty().withMessage("Firstname cannot be Empty"),
   body("lastName").not().isEmpty().withMessage("Lastname cannot be Empty"),
   body("username").not().isEmpty().withMessage("Username cannot be Empty"),
-  body("password").not().isEmpty().withMessage("Password cannot be Empty"),
   body("password")
+    .not()
+    .isEmpty()
+    .withMessage("Password cannot be Empty")
     .isLength({ min: 6 })
     .withMessage("The minimum password length should be at least 6 characters"),
   body("dateOfBirth")
@@ -24,11 +26,11 @@ export const register = [
     .withMessage("Invalid date format. Please use YYYY-MM-DD"),
 
   async (req: Request, res: Response) => {
-    const { firstName, lastName, username, password, dateOfBirth } = req.body;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errorMessage: errors.array });
+      return res.status(400).json({ errorMessage: errors.array() });
     }
+    const { firstName, lastName, username, password, dateOfBirth } = req.body;
     try {
       const existingUsername = await User.findOne({ username }).exec();
       if (existingUsername) {
@@ -55,7 +57,7 @@ export const register = [
         const payload = {
           errorMessage: error.message,
         };
-        console.error("Registration error: ", error);
+        console.error("Registration error: ", payload);
         return res.status(500).json(payload);
       }
       throw error;
