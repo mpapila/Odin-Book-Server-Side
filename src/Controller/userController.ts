@@ -16,15 +16,15 @@ export const register = [
   body("password")
     .isLength({ min: 6 })
     .withMessage("The minimum password length should be at least 6 characters"),
-  body("birthday")
+  body("dateOfBirth")
     .not()
     .isEmpty()
-    .withMessage("Birthday cannot be Empty")
+    .withMessage("Date of birth cannot be Empty")
     .isDate()
     .withMessage("Invalid date format. Please use YYYY-MM-DD"),
 
   async (req: Request, res: Response) => {
-    const { firstName, lastName, username, password, birthday } = req.body;
+    const { firstName, lastName, username, password, dateOfBirth } = req.body;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errorMessage: errors.array });
@@ -44,7 +44,7 @@ export const register = [
         lastName,
         username,
         password: hashed,
-        birthday,
+        dateOfBirth,
       });
       await newUser.save();
       res
@@ -55,6 +55,7 @@ export const register = [
         const payload = {
           errorMessage: error.message,
         };
+        console.error("Registration error: ", error);
         return res.status(500).json(payload);
       }
       throw error;

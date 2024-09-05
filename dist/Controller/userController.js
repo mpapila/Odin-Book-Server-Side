@@ -29,14 +29,14 @@ exports.register = [
     (0, express_validator_1.body)("password")
         .isLength({ min: 6 })
         .withMessage("The minimum password length should be at least 6 characters"),
-    (0, express_validator_1.body)("birthday")
+    (0, express_validator_1.body)("dateOfBirth")
         .not()
         .isEmpty()
-        .withMessage("Birthday cannot be Empty")
+        .withMessage("Date of birth cannot be Empty")
         .isDate()
         .withMessage("Invalid date format. Please use YYYY-MM-DD"),
     (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-        const { firstName, lastName, username, password, birthday } = req.body;
+        const { firstName, lastName, username, password, dateOfBirth } = req.body;
         const errors = (0, express_validator_1.validationResult)(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ errorMessage: errors.array });
@@ -54,7 +54,7 @@ exports.register = [
                 lastName,
                 username,
                 password: hashed,
-                birthday,
+                dateOfBirth,
             });
             yield newUser.save();
             res
@@ -66,6 +66,7 @@ exports.register = [
                 const payload = {
                     errorMessage: error.message,
                 };
+                console.error("Registration error: ", error);
                 return res.status(500).json(payload);
             }
             throw error;
