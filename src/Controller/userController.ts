@@ -2,11 +2,51 @@ import { Request, Response } from "express";
 import User from "../models/userModel";
 import { body, validationResult } from "express-validator";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export const allUsers = async (req: Request, res: Response) => {
   const allUsers = await User.find().exec();
   res.status(200).json({ allUsers });
 };
+
+export const login = [
+  body("username").not().isEmpty().withMessage("Username cannot be empty"),
+  body("password").not().isEmpty().withMessage("Password cannot be empty"),
+
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errorMessage: errors.array() });
+    }
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json({ errorMessage: "User not found!" });
+    }
+    try {
+      const hashed = String(user.password);
+      const passwordMatches = await bcrypt.compare(password, hashed);
+      if (!passwordMatches) {
+        return res.status(400).json({ errorMessage: "Incorrect Password!" });
+      }
+
+      const userString = JSON.stringify(user);
+      if (!process.env.JWT_SECRET) {
+        return res
+          .status(400)
+          .json({ errorMessage: "JWT Secret Key cannot be found" });
+      }
+      const token = jwt.sign(userString, process.env.JWT_SECRET);
+      const responsePayload = {
+        token,
+      };
+      res.json(responsePayload);
+    } catch (e) {
+      console.error("Error fetching users:", e);
+      res.status(500).json({ errorMessage: "Internal Server Error!", e });
+    }
+  },
+];
 
 export const register = [
   body("firstName").not().isEmpty().withMessage("Firstname cannot be Empty"),

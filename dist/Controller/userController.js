@@ -12,15 +12,53 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.register = exports.allUsers = void 0;
+exports.register = exports.login = exports.allUsers = void 0;
 const userModel_1 = __importDefault(require("../models/userModel"));
 const express_validator_1 = require("express-validator");
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const allUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const allUsers = yield userModel_1.default.find().exec();
     res.status(200).json({ allUsers });
 });
 exports.allUsers = allUsers;
+exports.login = [
+    (0, express_validator_1.body)("username").not().isEmpty().withMessage("Username cannot be empty"),
+    (0, express_validator_1.body)("password").not().isEmpty().withMessage("Password cannot be empty"),
+    (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+        const errors = (0, express_validator_1.validationResult)(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errorMessage: errors.array() });
+        }
+        const { username, password } = req.body;
+        const user = yield userModel_1.default.findOne({ username });
+        if (!user) {
+            return res.status(400).json({ errorMessage: "User not found!" });
+        }
+        try {
+            const hashed = String(user.password);
+            const passwordMatches = yield bcrypt_1.default.compare(password, hashed);
+            if (!passwordMatches) {
+                return res.status(400).json({ errorMessage: "Incorrect Password!" });
+            }
+            const userString = JSON.stringify(user);
+            if (!process.env.JWT_SECRET) {
+                return res
+                    .status(400)
+                    .json({ errorMessage: "JWT Secret Key cannot be found" });
+            }
+            const token = jsonwebtoken_1.default.sign(userString, process.env.JWT_SECRET);
+            const responsePayload = {
+                token,
+            };
+            res.json(responsePayload);
+        }
+        catch (e) {
+            console.error("Error fetching users:", e);
+            res.status(500).json({ errorMessage: "Internal Server Error!", e });
+        }
+    }),
+];
 exports.register = [
     (0, express_validator_1.body)("firstName").not().isEmpty().withMessage("Firstname cannot be Empty"),
     (0, express_validator_1.body)("lastName").not().isEmpty().withMessage("Lastname cannot be Empty"),
