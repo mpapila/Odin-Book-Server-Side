@@ -3,10 +3,16 @@ import User from "../models/userModel";
 import { body, validationResult } from "express-validator";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import Friendship from "../models/friendshipModel";
 
 export const allUsers = async (req: Request, res: Response) => {
-  const allUsers = await User.find().exec();
-  res.status(200).json({ allUsers });
+  try {
+    const allUsers = await User.find().select("-password").exec();
+    res.status(200).json({ allUsers });
+  } catch (err) {
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
 
 export const login = [
@@ -20,6 +26,7 @@ export const login = [
     }
     const { username, password } = req.body;
     const user = await User.findOne({ username });
+    console.log("myuserid", user?._id);
     if (!user) {
       return res.status(400).json({ errorMessage: "User not found!" });
     }
@@ -39,6 +46,7 @@ export const login = [
       const token = jwt.sign(userString, process.env.JWT_SECRET);
       const responsePayload = {
         token,
+        myUserId: user?._id,
       };
       res.json(responsePayload);
     } catch (e) {
@@ -104,3 +112,41 @@ export const register = [
     }
   },
 ];
+
+export const addFriend = async (req: Request, res: Response) => {
+  const friendUserId = req.body.friendId;
+  const myUserId = req.userId;
+  console.log("req.user,myUserId", myUserId);
+  console.log("req.body,friendUserId", friendUserId);
+  const newFriendship = new Friendship({
+    requesterId: myUserId,
+    receiverId: friendUserId,
+    status: "pending",
+  });
+  try {
+    await newFriendship.save();
+    console.log("done");
+    res.status(200).json({ message: `Sent friend request successfully` });
+  } catch (err) {
+    console.log("fail");
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const myPendingFriendsList = async (req: Request, res: Response) => {
+  const myUserId = req.userId;
+  console.log("myuserid", myUserId);
+  const incomingRequests = await Friendship.find({ receiverId: myUserId });
+  const requestedFriends = await Friendship.find({ requesterId: myUserId });
+  console.log("incomingRequests", incomingRequests);
+  console.log("requestedFriends", requestedFriends);
+  try {
+    console.log("done");
+    res.status(200).json({ incomingRequests, requestedFriends });
+  } catch (err) {
+    console.log("fail");
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

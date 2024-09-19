@@ -12,14 +12,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.register = exports.login = exports.allUsers = void 0;
+exports.myPendingFriendsList = exports.addFriend = exports.register = exports.login = exports.allUsers = void 0;
 const userModel_1 = __importDefault(require("../models/userModel"));
 const express_validator_1 = require("express-validator");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const friendshipModel_1 = __importDefault(require("../models/friendshipModel"));
 const allUsers = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const allUsers = yield userModel_1.default.find().exec();
-    res.status(200).json({ allUsers });
+    try {
+        const allUsers = yield userModel_1.default.find().select("-password").exec();
+        res.status(200).json({ allUsers });
+    }
+    catch (err) {
+        console.error("Error fetching users: ", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
 });
 exports.allUsers = allUsers;
 exports.login = [
@@ -32,6 +39,7 @@ exports.login = [
         }
         const { username, password } = req.body;
         const user = yield userModel_1.default.findOne({ username });
+        console.log("myuserid", user === null || user === void 0 ? void 0 : user._id);
         if (!user) {
             return res.status(400).json({ errorMessage: "User not found!" });
         }
@@ -50,6 +58,7 @@ exports.login = [
             const token = jsonwebtoken_1.default.sign(userString, process.env.JWT_SECRET);
             const responsePayload = {
                 token,
+                myUserId: user === null || user === void 0 ? void 0 : user._id,
             };
             res.json(responsePayload);
         }
@@ -113,3 +122,43 @@ exports.register = [
         }
     }),
 ];
+const addFriend = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const friendUserId = req.body.friendId;
+    const myUserId = req.userId;
+    console.log("req.user,myUserId", myUserId);
+    console.log("req.body,friendUserId", friendUserId);
+    const newFriendship = new friendshipModel_1.default({
+        requesterId: myUserId,
+        receiverId: friendUserId,
+        status: "pending",
+    });
+    try {
+        yield newFriendship.save();
+        console.log("done");
+        res.status(200).json({ message: `Sent friend request successfully` });
+    }
+    catch (err) {
+        console.log("fail");
+        console.error("Error fetching users: ", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+exports.addFriend = addFriend;
+const myPendingFriendsList = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const myUserId = req.userId;
+    console.log("myuserid", myUserId);
+    const incomingRequests = yield friendshipModel_1.default.find({ receiverId: myUserId });
+    const requestedFriends = yield friendshipModel_1.default.find({ requesterId: myUserId });
+    console.log("incomingRequests", incomingRequests);
+    console.log("requestedFriends", requestedFriends);
+    try {
+        console.log("done");
+        res.status(200).json({ incomingRequests, requestedFriends });
+    }
+    catch (err) {
+        console.log("fail");
+        console.error("Error fetching users: ", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+exports.myPendingFriendsList = myPendingFriendsList;

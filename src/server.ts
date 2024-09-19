@@ -4,6 +4,7 @@ import express from "express";
 import mongoose from "mongoose";
 import User from "./models/userModel";
 import router from "./routes";
+import Friendship from "./models/friendshipModel";
 
 const app = express();
 app.use(cors());
