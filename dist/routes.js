@@ -11,5 +11,6 @@ router.get("/allUsers", middleware_1.verifyToken, userController_1.allUsers);
 router.post("/register", userController_1.register);
 router.post("/login", userController_1.login);
 router.post("/addFriend", middleware_1.verifyToken, userController_1.addFriend);
+router.post("/acceptFriend", middleware_1.verifyToken, userController_1.acceptFriendRequest);
 router.get("/myPendingFriendsList", middleware_1.verifyToken, userController_1.myPendingFriendsList);
 exports.default = router;

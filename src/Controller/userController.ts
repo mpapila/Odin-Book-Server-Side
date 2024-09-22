@@ -134,16 +134,73 @@ export const addFriend = async (req: Request, res: Response) => {
   }
 };
 
+export const acceptFriendRequest = async (req: Request, res: Response) => {
+  const requestId = req.body.requestId;
+  const myUserId = req.userId;
+  console.log("req.user,myUserId", myUserId);
+  console.log("requestId", requestId);
+  try {
+    const friendshipStatus = await Friendship.findByIdAndUpdate(
+      { _id: requestId },
+      { status: "accepted" },
+      { new: true }
+    );
+    console.log("friendshipStatus", friendshipStatus);
+    res.status(200).json({ message: `Accepted friend request successfully` });
+  } catch (err) {
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 export const myPendingFriendsList = async (req: Request, res: Response) => {
   const myUserId = req.userId;
   console.log("myuserid", myUserId);
-  const incomingRequests = await Friendship.find({ receiverId: myUserId });
-  const requestedFriends = await Friendship.find({ requesterId: myUserId });
+  const incomingRequests = await Friendship.find({
+    receiverId: myUserId,
+    status: "pending",
+  });
+  const requestedFriends = await Friendship.find({
+    requesterId: myUserId,
+    status: "pending",
+  });
+  const incomingRequestsDetails = await User.find({
+    _id: incomingRequests.map((user) => {
+      return user.requesterId;
+    }),
+  })
+    .select("-password")
+    .exec();
+
+  const mergedIncomingRequests = incomingRequests
+    .map((request) => {
+      const userDetails = incomingRequestsDetails.find(
+        (user) => user._id.toString() === request.requesterId.toString()
+      );
+
+      if (userDetails) {
+        return {
+          requestId: request._id,
+          requesterId: request.requesterId,
+          firstname: userDetails.firstName,
+          lastname: userDetails.lastName,
+          username: userDetails.username,
+        };
+      }
+
+      return null;
+    })
+    .filter((request) => request !== null);
+
+  console.log("mergedRequest", mergedIncomingRequests);
+  // console.log("allusers", incomingRequestsDetails);
   console.log("incomingRequests", incomingRequests);
-  console.log("requestedFriends", requestedFriends);
+  // console.log("requestedFriends", requestedFriends);
   try {
     console.log("done");
-    res.status(200).json({ incomingRequests, requestedFriends });
+    res
+      .status(200)
+      .json({ incomingRequests, mergedIncomingRequests, requestedFriends });
   } catch (err) {
     console.log("fail");
     console.error("Error fetching users: ", err);

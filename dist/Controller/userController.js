@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.myPendingFriendsList = exports.addFriend = exports.register = exports.login = exports.allUsers = void 0;
+exports.myPendingFriendsList = exports.acceptFriendRequest = exports.addFriend = exports.register = exports.login = exports.allUsers = void 0;
 const userModel_1 = __importDefault(require("../models/userModel"));
 const express_validator_1 = require("express-validator");
 const bcrypt_1 = __importDefault(require("bcrypt"));
@@ -144,16 +144,64 @@ const addFriend = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.addFriend = addFriend;
+const acceptFriendRequest = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const requestId = req.body.requestId;
+    const myUserId = req.userId;
+    console.log("req.user,myUserId", myUserId);
+    console.log("requestId", requestId);
+    try {
+        const friendshipStatus = yield friendshipModel_1.default.findByIdAndUpdate({ _id: requestId }, { status: "accepted" }, { new: true });
+        console.log("friendshipStatus", friendshipStatus);
+        res.status(200).json({ message: `Accepted friend request successfully` });
+    }
+    catch (err) {
+        console.error("Error fetching users: ", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+exports.acceptFriendRequest = acceptFriendRequest;
 const myPendingFriendsList = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const myUserId = req.userId;
     console.log("myuserid", myUserId);
-    const incomingRequests = yield friendshipModel_1.default.find({ receiverId: myUserId });
-    const requestedFriends = yield friendshipModel_1.default.find({ requesterId: myUserId });
+    const incomingRequests = yield friendshipModel_1.default.find({
+        receiverId: myUserId,
+        status: "pending",
+    });
+    const requestedFriends = yield friendshipModel_1.default.find({
+        requesterId: myUserId,
+        status: "pending",
+    });
+    const incomingRequestsDetails = yield userModel_1.default.find({
+        _id: incomingRequests.map((user) => {
+            return user.requesterId;
+        }),
+    })
+        .select("-password")
+        .exec();
+    const mergedIncomingRequests = incomingRequests
+        .map((request) => {
+        const userDetails = incomingRequestsDetails.find((user) => user._id.toString() === request.requesterId.toString());
+        if (userDetails) {
+            return {
+                requestId: request._id,
+                requesterId: request.requesterId,
+                firstname: userDetails.firstName,
+                lastname: userDetails.lastName,
+                username: userDetails.username,
+            };
+        }
+        return null;
+    })
+        .filter((request) => request !== null);
+    console.log("mergedRequest", mergedIncomingRequests);
+    // console.log("allusers", incomingRequestsDetails);
     console.log("incomingRequests", incomingRequests);
-    console.log("requestedFriends", requestedFriends);
+    // console.log("requestedFriends", requestedFriends);
     try {
         console.log("done");
-        res.status(200).json({ incomingRequests, requestedFriends });
+        res
+            .status(200)
+            .json({ incomingRequests, mergedIncomingRequests, requestedFriends });
     }
     catch (err) {
         console.log("fail");
