@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.myPendingFriendsList = exports.acceptFriendRequest = exports.addFriend = exports.register = exports.login = exports.allUsers = void 0;
+exports.myFriendList = exports.myPendingFriendsList = exports.acceptFriendRequest = exports.addFriend = exports.register = exports.login = exports.allUsers = void 0;
 const userModel_1 = __importDefault(require("../models/userModel"));
 const express_validator_1 = require("express-validator");
 const bcrypt_1 = __importDefault(require("bcrypt"));
@@ -210,3 +210,29 @@ const myPendingFriendsList = (req, res) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 exports.myPendingFriendsList = myPendingFriendsList;
+const myFriendList = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const myId = req.userId;
+    try {
+        const myFriends = yield friendshipModel_1.default.find({
+            $or: [{ requesterId: myId }, { receiverId: myId }],
+            status: "accepted",
+        });
+        console.log("myFriends", myFriends);
+        const friendIds = myFriends.map((friendship) => {
+            if (friendship.requesterId === myId) {
+                return friendship.receiverId;
+            }
+            else {
+                return friendship.requesterId;
+            }
+        });
+        const friends = yield userModel_1.default.find({ _id: { $in: friendIds } }, "firstName lastName dateOfBirth username");
+        res.status(200).json({ friends });
+    }
+    catch (err) {
+        console.log("fail");
+        console.error("Error fetching users: ", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+exports.myFriendList = myFriendList;

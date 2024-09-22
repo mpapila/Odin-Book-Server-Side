@@ -207,3 +207,30 @@ export const myPendingFriendsList = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+export const myFriendList = async (req: Request, res: Response) => {
+  const myId = req.userId;
+  try {
+    const myFriends = await Friendship.find({
+      $or: [{ requesterId: myId }, { receiverId: myId }],
+      status: "accepted",
+    });
+    console.log("myFriends", myFriends);
+    const friendIds = myFriends.map((friendship) => {
+      if (friendship.requesterId === myId) {
+        return friendship.receiverId;
+      } else {
+        return friendship.requesterId;
+      }
+    });
+    const friends = await User.find(
+      { _id: { $in: friendIds } },
+      "firstName lastName dateOfBirth username"
+    );
+    res.status(200).json({ friends });
+  } catch (err) {
+    console.log("fail");
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

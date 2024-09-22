@@ -4,6 +4,7 @@ import {
   addFriend,
   allUsers,
   login,
+  myFriendList,
   myPendingFriendsList,
   register,
 } from "./Controller/userController";
@@ -17,5 +18,6 @@ router.post("/login", login);
 router.post("/addFriend", verifyToken, addFriend);
 router.post("/acceptFriend", verifyToken, acceptFriendRequest);
 router.get("/myPendingFriendsList", verifyToken, myPendingFriendsList);
+router.get("/myFriends", verifyToken, myFriendList);
 
 export default router;
