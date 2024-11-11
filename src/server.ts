@@ -2,9 +2,9 @@ import dotenv from "dotenv";
 import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
-import User from "./models/userModel";
+import Post from "./models/PostModel";
 import router from "./routes";
-import Friendship from "./models/friendshipModel";
+import Notification from "./models/NotificationModel";
 
 const app = express();
 app.use(cors());
