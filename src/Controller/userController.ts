@@ -4,6 +4,8 @@ import { body, validationResult } from "express-validator";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import Friendship from "../models/friendshipModel";
+import Notification from "../models/NotificationModel";
+import Post from "../models/PostModel";
 
 export const allUsers = async (req: Request, res: Response) => {
   try {
@@ -95,6 +97,7 @@ export const register = [
         username,
         password: hashed,
         dateOfBirth,
+        profilePhoto: "",
       });
       await newUser.save();
       res
@@ -112,6 +115,51 @@ export const register = [
     }
   },
 ];
+
+export const savePhoto = async (req: Request, res: Response) => {
+  const myUserId = req.userId;
+  const photo = req.body.photo;
+  try {
+    if (!photo) {
+      return res.status(400).json({ error: "Photo Not Found!" });
+    }
+    console.log("req body", req.body);
+    console.log("myUserId", myUserId);
+    const updatedProfile = await User.findByIdAndUpdate(
+      { _id: myUserId },
+      { profilePhoto: photo }
+    );
+    res.status(200).json({ updatedProfile });
+  } catch (err) {
+    console.log("fail");
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const removePhoto = async (req: Request, res: Response) => {
+  const myUserId = req.userId;
+  const checkPhoto = await User.findById({ _id: myUserId });
+  console.log("userid", myUserId);
+  try {
+    if (
+      checkPhoto &&
+      checkPhoto.profilePhoto &&
+      checkPhoto.profilePhoto.length > 1
+    ) {
+      console.log("There is a photo");
+      checkPhoto.profilePhoto = "";
+      await checkPhoto.save();
+      res.status(200).json("Success");
+    } else {
+      throw new Error("There is no photo");
+    }
+  } catch (err) {
+    console.log("fail");
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
 export const addFriend = async (req: Request, res: Response) => {
   const friendUserId = req.body.friendId;
@@ -137,15 +185,41 @@ export const addFriend = async (req: Request, res: Response) => {
 export const acceptFriendRequest = async (req: Request, res: Response) => {
   const requestId = req.body.requestId;
   const myUserId = req.userId;
+  const friendshipStatus = await Friendship.findById({ _id: requestId });
+  console.log("friendshipStatus", friendshipStatus);
   console.log("req.user,myUserId", myUserId);
   console.log("requestId", requestId);
+  const requesterInfo = await User.findById(
+    friendshipStatus?.requesterId,
+    "firstName lastName"
+  );
+  const myInfo = await User.findById(myUserId, "firstName lastName");
+  console.log("requesterInfo", requesterInfo);
+  console.log("myInfo", myInfo);
   try {
-    const friendshipStatus = await Friendship.findByIdAndUpdate(
+    const newFriendshipStatus = await Friendship.findByIdAndUpdate(
       { _id: requestId },
       { status: "accepted" },
       { new: true }
     );
-    console.log("friendshipStatus", friendshipStatus);
+    const newNotificationForRequester = new Notification({
+      userId: myUserId,
+      message: `${myInfo?.firstName} ${myInfo?.lastName} accepted your friendship request`,
+      type: "friendship",
+      recipient: requesterInfo?._id,
+      post: requesterInfo?._id,
+    });
+    const newNotificationForReceiver = new Notification({
+      userId: requesterInfo?._id,
+      message: `You accepted ${requesterInfo?.firstName} ${requesterInfo?.lastName}'s friendship request`,
+      type: "friendship",
+      recipient: myUserId,
+      post: requesterInfo?._id,
+    });
+    await newNotificationForRequester.save();
+    await newNotificationForReceiver.save();
+    // console.log("newNotificationForReceiver", newNotificationForReceiver);
+    // console.log("newNotificationForRequester", newNotificationForRequester);
     res.status(200).json({ message: `Accepted friend request successfully` });
   } catch (err) {
     console.error("Error fetching users: ", err);
@@ -156,6 +230,10 @@ export const acceptFriendRequest = async (req: Request, res: Response) => {
 export const myPendingFriendsList = async (req: Request, res: Response) => {
   const myUserId = req.userId;
   console.log("myuserid", myUserId);
+  const allFriendships = await Friendship.find({
+    $or: [{ requesterId: myUserId }, { receiverId: myUserId }],
+    status: "pending",
+  });
   const incomingRequests = await Friendship.find({
     receiverId: myUserId,
     status: "pending",
@@ -198,9 +276,12 @@ export const myPendingFriendsList = async (req: Request, res: Response) => {
   // console.log("requestedFriends", requestedFriends);
   try {
     console.log("done");
-    res
-      .status(200)
-      .json({ incomingRequests, mergedIncomingRequests, requestedFriends });
+    res.status(200).json({
+      allFriendships,
+      incomingRequests,
+      mergedIncomingRequests,
+      requestedFriends,
+    });
   } catch (err) {
     console.log("fail");
     console.error("Error fetching users: ", err);
@@ -215,7 +296,7 @@ export const myFriendList = async (req: Request, res: Response) => {
       $or: [{ requesterId: myId }, { receiverId: myId }],
       status: "accepted",
     });
-    console.log("myFriends", myFriends);
+    // console.log("myFriends", myFriends);
     const friendIds = myFriends.map((friendship) => {
       if (friendship.requesterId === myId) {
         return friendship.receiverId;
@@ -225,9 +306,77 @@ export const myFriendList = async (req: Request, res: Response) => {
     });
     const friends = await User.find(
       { _id: { $in: friendIds } },
-      "firstName lastName dateOfBirth username"
+      "firstName lastName dateOfBirth username profilePhoto"
     );
+    // console.log("friends", friends);
     res.status(200).json({ friends });
+  } catch (err) {
+    console.log("fail");
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getUserProfile = async (req: Request, res: Response) => {
+  const myId = req.userId;
+  const profileId = req.params.id;
+
+  try {
+    const userProfileById = await User.findOne({
+      _id: profileId,
+    })
+      .select("-password")
+      .exec();
+    const userPostById = await Post.find({
+      userId: profileId,
+    });
+    res.status(200).json({ userPostById, userProfileById });
+  } catch (err) {
+    console.log("fail");
+    console.error("Error fetching users: ", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const editProfile = async (req: Request, res: Response) => {
+  const myId = req.userId;
+  const { firstName, lastName, dateOfBirth } = req.body;
+  try {
+    const myProfile = await User.findOne({
+      _id: myId,
+    })
+      .select("-password")
+      .exec();
+    if (!myProfile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+    const currentFirstName = myProfile?.firstName;
+    const currentLastName = myProfile?.lastName;
+    const currentDateOfBirth = new Date(myProfile.dateOfBirth)
+      .toISOString()
+      .split("T")[0];
+
+    if (
+      currentFirstName === firstName &&
+      currentLastName === lastName &&
+      currentDateOfBirth === dateOfBirth
+    ) {
+      console.log("No changes detected");
+      return res.status(400).json({ message: "No changes detected" });
+    }
+
+    myProfile.firstName = firstName;
+    myProfile.lastName = lastName;
+    myProfile.dateOfBirth = dateOfBirth;
+
+    await myProfile.save();
+    console.log("Profile updated successfully");
+    res
+      .status(200)
+      .json({ message: "Profile updated successfully", profile: myProfile });
+
+    // console.log("myprofile", myProfile);
+    // console.log("body", req.body);
   } catch (err) {
     console.log("fail");
     console.error("Error fetching users: ", err);
