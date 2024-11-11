@@ -4,6 +4,8 @@ import Post from "../models/PostModel";
 import Friendship from "../models/friendshipModel";
 import User from "../models/userModel";
 import { Like } from "../type";
+import { Types } from "mongoose";
+import Notification from "../models/NotificationModel";
 
 export const createPost = [
   body("content").not().isEmpty().withMessage("Content cannot be empty"),
@@ -22,7 +24,20 @@ export const createPost = [
         likes: [],
         comments: [],
       });
+      const myNameInfo = await User.findById(
+        {
+          _id: myId,
+        },
+        "firstName lastName"
+      );
       await newPost.save();
+
+      const newNotification = new Notification({
+        userId: myId,
+        message: `${myNameInfo?.firstName} ${myNameInfo?.lastName} has added new post`,
+        type: "profile_edit",
+      });
+      await newNotification.save();
       return res
         .status(201)
         .json({ message: "Sent post successfully", newPost });
@@ -55,7 +70,8 @@ export const friendsPosts = async (req: Request, res: Response) => {
     });
     const myFriendsInfos = await User.find({
       _id: { $in: myFriendsId.concat(myId) },
-    }).select("firstName lastName _id");
+    }).select("firstName lastName _id profilePhoto");
+
     const myFriendsPosts = await Post.find({
       userId: { $in: myFriendsId.concat(myId) },
     }).sort({ createdAt: -1 });
@@ -70,6 +86,7 @@ export const friendsPosts = async (req: Request, res: Response) => {
           ...post.toObject(),
           firstName: friend ? friend.firstName : "Unknown",
           lastName: friend ? friend.lastName : "Unknown",
+          profilePhoto: friend ? friend.profilePhoto : "Unknown",
         };
       }
     );
@@ -88,25 +105,44 @@ export const likePosts = async (req: Request, res: Response) => {
 
   try {
     const post = await Post.findById(postId);
-
     if (!post) {
       return res.status(404).json({ error: "Post not found" });
     }
+    const postOwnerInfo = await User.findById(
+      post.userId,
+      "firstName lastName"
+    );
+    const myInfo = await User.findById(myId, "firstName lastName");
+
+    const newNotification = new Notification({
+      userId: myId,
+      message: `${myInfo?.firstName} ${myInfo?.lastName} liked your post`,
+      type: "like",
+      recipient: postOwnerInfo?._id,
+      postId: post._id,
+    });
 
     const alreadyLiked = post.likes.some(
-      (like: Like) => like.userId.toString() === myId
+      (like) => like.userId.toString() === myId
     );
 
     if (alreadyLiked) {
-      post.likes = post.likes.filter(
-        (like: Like) => like.userId.toString() !== myId
-      );
+      post.likes.pull({ userId: new Types.ObjectId(myId) });
+      await Notification.findOneAndDelete({
+        userId: myId,
+        recipient: postOwnerInfo?._id,
+        postId: post._id,
+      });
     } else {
       post.likes.push({ userId: myId });
+      console.log("newNotification", newNotification);
+      if (postOwnerInfo?._id.toString() !== myInfo?._id.toString()) {
+        await newNotification.save();
+      }
     }
 
     const savedPost = await post.save();
-    // console.log("Post after save:", savedPost);
+    console.log("Post after save:", savedPost);
 
     res.status(200).json({
       message: alreadyLiked ? "Like removed" : "Post liked",
@@ -148,16 +184,19 @@ export const getPostById = async (req: Request, res: Response) => {
   const postId = req.params.id;
   try {
     const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    console.log("post", post);
     const nameInfo = await User.findById(post.userId).select("-password");
-    const commentsUserIds = post.comments.map(
-      (comment: { userId: string }) => comment.userId
+    const commentsUserIds = post.comments.map((comment) =>
+      comment.userId.toString()
     );
-    console.log("commentsUserIds", commentsUserIds);
+    // console.log("commentsUserIds", commentsUserIds);
     const commentNameInfo = await User.find({
       _id: { $in: commentsUserIds },
-    }).select("firstName lastName");
-
-    console.log("commentNameInfo", commentNameInfo);
+    }).select("firstName lastName profilePhoto");
+    // console.log("commentNameInfo", commentNameInfo);
 
     // console.log("commentNameInfo", commentNameInfo);
     console.log("post", post, nameInfo);
