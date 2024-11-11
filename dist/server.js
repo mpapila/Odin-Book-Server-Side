@@ -8,11 +8,23 @@ const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const routes_1 = __importDefault(require("./routes"));
+const compression_1 = __importDefault(require("compression"));
+const helmet_1 = __importDefault(require("helmet"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.use("/", routes_1.default);
 dotenv_1.default.config();
+app.use((0, compression_1.default)());
+app.use(helmet_1.default.contentSecurityPolicy({
+    directives: {
+        "script-src": [
+            "'self' 'unsafe-inline'",
+            "code.jquery.com",
+            "cdn.jsdelivr.net",
+        ],
+    },
+}));
 const mongoDB = process.env.MONGODB_URI;
 const PORT = process.env.PORT;
 if (!mongoDB) {

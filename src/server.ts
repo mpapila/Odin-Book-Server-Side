@@ -2,15 +2,28 @@ import dotenv from "dotenv";
 import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
-import Post from "./models/PostModel";
 import router from "./routes";
-import Notification from "./models/NotificationModel";
+import compression from "compression";
+import helmet from "helmet";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/", router);
 dotenv.config();
+app.use(compression());
+
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      "script-src": [
+        "'self' 'unsafe-inline'",
+        "code.jquery.com",
+        "cdn.jsdelivr.net",
+      ],
+    },
+  })
+);
 
 const mongoDB = process.env.MONGODB_URI;
 const PORT = process.env.PORT;
