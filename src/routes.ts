@@ -21,7 +21,10 @@ import {
   postAttributes,
 } from "./Controller/postController";
 import { createComment } from "./Controller/CommentController";
-import { getNotification } from "./Controller/NotificationController";
+import {
+  getNotification,
+  healthCheck,
+} from "./Controller/NotificationController";
 
 const router = express.Router();
 
@@ -43,5 +46,6 @@ router.get("/profileById/:id", verifyToken, getUserProfile);
 router.post("/profile/:id/edit", verifyToken, editProfile);
 router.post("/:profileId/addPhoto", verifyToken, savePhoto);
 router.post("/removePhoto", verifyToken, removePhoto);
+router.get("/health-check", healthCheck);
 
 export default router;
