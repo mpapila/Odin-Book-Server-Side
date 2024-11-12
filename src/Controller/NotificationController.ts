@@ -3,6 +3,10 @@ import Notification from "../models/NotificationModel";
 import User from "../models/userModel";
 import Friendship from "../models/friendshipModel";
 
+export const healthCheck = (req: Request, res: Response) => {
+  res.status(200).json({ status: "ok" });
+};
+
 export const getNotification = async (req: Request, res: Response) => {
   const myId = req.userId;
 
