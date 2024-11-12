@@ -12,10 +12,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getNotification = void 0;
+exports.getNotification = exports.healthCheck = void 0;
 const NotificationModel_1 = __importDefault(require("../models/NotificationModel"));
 const userModel_1 = __importDefault(require("../models/userModel"));
 const friendshipModel_1 = __importDefault(require("../models/friendshipModel"));
+const healthCheck = (req, res) => {
+    res.status(200).json({ status: "ok" });
+};
+exports.healthCheck = healthCheck;
 const getNotification = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const myId = req.userId;
     try {

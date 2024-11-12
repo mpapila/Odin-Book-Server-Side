@@ -28,4 +28,5 @@ router.get("/profileById/:id", middleware_1.verifyToken, userController_1.getUse
 router.post("/profile/:id/edit", middleware_1.verifyToken, userController_1.editProfile);
 router.post("/:profileId/addPhoto", middleware_1.verifyToken, userController_1.savePhoto);
 router.post("/removePhoto", middleware_1.verifyToken, userController_1.removePhoto);
+router.get("/health-check", NotificationController_1.healthCheck);
 exports.default = router;
