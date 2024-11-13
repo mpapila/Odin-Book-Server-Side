@@ -58,4 +58,4 @@ This repository contains the backend server for the Odin Book Web Application. I
 API
 The server is deployed on Glitch and is only for API calls: https://odin-book-server-side.glitch.me/
 
-Example API call: https://odin-book-server-side.glitch.me//health-check
+Example API call: https://odin-book-server-side.glitch.me/health-check
